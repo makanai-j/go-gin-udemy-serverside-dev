@@ -1,55 +1,38 @@
-version: "3.8"
+version: '3.8'
+
+volumes:
+  postgres-data:
 
 services:
   app:
-    build:
-      context: ..
-      dockerfile: .devcontainer/Dockerfile
-    volumes:
-      - ..:/workspaces/${LOCAL_WORKSPACE_FOLDER_BASENAME}
-    working_dir: /workspaces/${LOCAL_WORKSPACE_FOLDER_BASENAME}
-    environment:
-      # アプリからの接続先は compose のサービス名を使う
-      DATABASE_URL: postgres://ginuser:ginpassword@postgres:5432/fleamarket?sslmode=disable
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # 必要なら Gin の 8080 をホスト公開
-    ports:
-      - "8080:8080"
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+        # Ensure that the variables in .env match the same variables in devcontainer.json
+        - .env
 
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ginuser
-      POSTGRES_PASSWORD: ginpassword
-      POSTGRES_DB: fleamarket
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
-      - pgdata:/var/lib/postgresql/data           # named volume 推奨
-      - ../docker/postgres/init.d:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ginuser -d fleamarket -h 127.0.0.1"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+      - ../..:/workspaces:cached
+      
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Runs app on the same network as the database container, allows "forwardPorts" in devcontainer.json function.
+    network_mode: service:db
+
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+
+  db:
+    image: postgres:latest
     restart: unless-stopped
-
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: gin@example.com
-      PGADMIN_DEFAULT_PASSWORD: ginpassword
-    ports:
-      - "81:80"        # ご指定どおり（衝突していたら 8081:80 などへ変更）
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    restart: unless-stopped
+      - postgres-data:/var/lib/postgresql/data
+    env_file:
+      # Ensure that the variables in .env match the same variables in devcontainer.json
+      - .env
 
-volumes:
-  pgdata:
-  pgadmin-data:
+
+    # Add "forwardPorts": ["5432"] to **devcontainer.json** to forward PostgreSQL locally.
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
