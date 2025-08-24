@@ -3,12 +3,14 @@ package controllers
 import (
 	"gin-fleamarket/services"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
 type IItemcontroller interface {
 	FindAll(ctx *gin.Context)
+	FindById(ctx *gin.Context)
 }
 
 type ItemController struct {
@@ -26,4 +28,18 @@ func (c *ItemController) FindAll(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, items)
+}
+
+func (c *ItemController) FindById(ctx *gin.Context) {
+	itemId, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid item id"})
+		return
+	}
+	item, err := c.service.FindById(uint(itemId))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"item": item})
 }
